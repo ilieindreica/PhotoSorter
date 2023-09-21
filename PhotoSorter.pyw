@@ -330,7 +330,7 @@ class PhotoSorter(QMainWindow):
                 i = 1
                 while os.path.exists(imageFolder + self.imageName + " double(" + str(i) + ")."+ imageExtension):
                     i += 1
-                msg.setText("The file already exists in that folder\nIt was moved in the selected folder with \"dublura(" + str(i) + ")\" at the end in its name")
+                msg.setText("The file already exists in that folder\nIt was moved in the selected folder with \"double(" + str(i) + ")\" at the end in its name")
                 msg.setWindowTitle("Error")
                 shutil.move(currentImage, imageFolder + self.imageName + " double(" + str(i) + ")."+ imageExtension)
 
