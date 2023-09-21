@@ -1,36 +1,22 @@
-#from test import VideoPlayer
-from ast import Delete
-from email.errors import MalformedHeaderDefect
-from genericpath import exists
-from operator import truediv
-from pathlib import Path
-import re
-from tkinter.ttk import Separator
-from turtle import position
 from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtCore import QDateTime, QUrl, Qt, QTimer
-from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
-        QDial, QDialog, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QListView, QListWidget, QListWidgetItem, QMessageBox,
-        QProgressBar, QPushButton, QRadioButton, QScrollArea, QSizePolicy,
-        QSlider, QSpinBox, QStyleFactory, QTableWidget, QTabWidget, QTextEdit,
-        QVBoxLayout, QWidget, QMenu,QMenuBar, QMainWindow, QFileDialog, QListView, QStyle)
+from PyQt5.QtCore import QUrl, Qt
+from PyQt5.QtWidgets import (QApplication, QGridLayout, QLabel, QLineEdit, QListWidget, QMessageBox,
+        QPushButton, QScrollArea, QWidget, QMenuBar, QMainWindow, QFileDialog, QStyle)
 from PyQt5.QtGui import QPixmap, QMovie
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer, QMediaPlaylist
 from PyQt5.QtMultimediaWidgets import QVideoWidget
-from PyQt5 import uic   
 import os
 import shutil
 
 
 class Slider(QtWidgets.QSlider):
     def __init__(self, parent=None):
-        super(Slider, self).__init__(parent)  #e important, dar ce face??
+        super(Slider, self).__init__(parent)  
         self.observers = []
         self.val = 0
 
     def notify_observers(self):
         for obs in self.observers:
-            print("mere foru")
             obs.update(self)
 
     def mousePressEvent(self, event):
@@ -81,31 +67,27 @@ class PhotoSorter(QMainWindow):
 
 
     def initialiseGraphics(self):
-        self.setWindowTitle("Categorii")                          #titlul de sus al ferestrei
+        self.setWindowTitle("Categories")                          
 
-        self.categoriesList = QListWidget()                      #chestia lunga, verticala si alba, care are toate categoriile, adica folderele care se vor crea
-        self.categoriesList.addItems([])
+        self.categoriesList = QListWidget()                      
         self.categoriesList.setSortingEnabled(1)
         self.categoriesList.itemSelectionChanged.connect(self.showSubcategories)
         self.categoriesList.itemDoubleClicked.connect(self.removeSubcategories)
 
-        selectCategoryButton = QPushButton("Select")                        #butonu ala pe care scrie Select, respectiv ala pe care scrie Add Category   
+        selectCategoryButton = QPushButton("Select")                           
         selectCategoryButton.clicked.connect(self.selectCategory)
         addCategoryButton = QPushButton("Add Category")
-        addCategoryButton.clicked.connect(self.addNewCategory)              #asa ii zici ce se intampla cand apesi pe buton
+        addCategoryButton.clicked.connect(self.addNewCategory)              
 
-        # removeSubcategoriesButton = QPushButton("Remove subcategories")
-        # removeSubcategoriesButton.clicked.connect(self.removeSubcategories)
+        self.newCategoryName = QLineEdit()                                   
+        self.newCategoryName.returnPressed.connect(self.addNewCategory)      
 
-        self.newCategoryName = QLineEdit()                                   #linia aia de introdus nume de noi foldere
-        self.newCategoryName.returnPressed.connect(self.addNewCategory)       #asa adauga numele de noi foldere in lista de foldere
-
-        self.newImageName = QLineEdit()                                        #pt redenumirea imaginii
+        self.newImageName = QLineEdit()                                     
         self.newImageName.returnPressed.connect(self.selectCategory)
 
-        centralWidget = QWidget(self)                                       #asta ce facea? cred ca e mainu, gen intreaga fereastra care contine tot
+        centralWidget = QWidget(self)                                       
 
-        self.imageBox = QLabel(self)                                        #spatiul in care se afiseaza imaginile
+        self.imageBox = QLabel(self)                                        
         self.imageBox.setText("No Image Selected")
 
         self.scroll = QScrollArea()
@@ -114,12 +96,12 @@ class PhotoSorter(QMainWindow):
         self.scroll.setWidget(self.imageBox)
         self.scroll.setWidgetResizable(True)
 
-        self.imageCountLabel = QLabel(self)                                  #numara cate poze au mai ramas pe linia de asteptare si iti spune
-        self.imageCountLabel.setText("Au mai ramas 0 imagini")
+        self.imageCountLabel = QLabel(self)                                  
+        self.imageCountLabel.setText("0 images left")
 
         self.mediaPlayer = QMediaPlayer(None, QMediaPlayer.VideoSurface)
         self.videoWidget = QVideoWidget()
-        self.mediaPlayer.setNotifyInterval(200)                         #la intervalul asta de milisecunde se updateaza slideru, ca sa nu apara choppy
+        self.mediaPlayer.setNotifyInterval(200)                         
 
         self.playButton = QPushButton()
         self.playButton.clicked.connect(self.play)
@@ -131,15 +113,14 @@ class PhotoSorter(QMainWindow):
         self.positionSlider.sliderMoved.connect(self.setPosition)
         self.positionSlider.setVisible(False)
 
-        self.jumpOverButton = QPushButton("Lasa unde e (numele nu se va schimba)")
+        self.jumpOverButton = QPushButton("Leave where it is (name will not be changed)")
         self.jumpOverButton.clicked.connect(self.jumpOver)
 
 
-        mainLayout = QGridLayout(centralWidget)                               #le aranjeaza pe toate sa arate frumos in fereastra "mama"
+        mainLayout = QGridLayout(centralWidget)                               
         mainLayout.addWidget(self.scroll, 0,0,7,5)
         mainLayout.addWidget(self.categoriesList,0,5,6,2)
         mainLayout.addWidget(selectCategoryButton,6,5,1,2)
-        # mainLayout.addWidget(removeSubcategoriesButton, 5, 7, 1, 2)
         mainLayout.addWidget(self.jumpOverButton, 6, 7, 1, 2)
         mainLayout.addWidget(self.newCategoryName, 0,7,1,2)
         mainLayout.addWidget(addCategoryButton, 1,7,1,2)
@@ -151,7 +132,7 @@ class PhotoSorter(QMainWindow):
         
         self.setCentralWidget(centralWidget)
 
-        menuBar = QMenuBar(self)                                            #butonu ala pe care apesi sa alegi poze sau folderul destinatie
+        menuBar = QMenuBar(self)                                            
         addImagesAction = menuBar.addAction("&Add Images")
         addImagesAction.triggered.connect(self.openAddImagesDialog)
         selectFolderAction = menuBar.addAction("Select Folder")
@@ -161,11 +142,11 @@ class PhotoSorter(QMainWindow):
         self.setMenuBar(menuBar)
 
 
-    def openAddImagesDialog(self):                              #asta se apeleaza cand vrei sa adaugi poze                                                                                            
+    def openAddImagesDialog(self):                                                                                                                          
         dialog = QFileDialog()
-        filenames,filter = dialog.getOpenFileNames(None, "Select your images", "", "Image Files (*.jpg *.jpeg *.png *.bmp *.gif *.mp4 *.webm)")   #numa fisiere de tipul asta ai voie sa deschizi
+        filenames,filter = dialog.getOpenFileNames(None, "Select your images", "", "Image Files (*.jpg *.jpeg *.png *.bmp *.gif *.mp4 *.webm)")
         for f in filenames:
-            if f not in self.imagesQueue:                                                             #le adauga pe linia de asteptare
+            if f not in self.imagesQueue:                                                            
                 self.imagesQueue.append(f)
         self.refreshImage()
         self.refreshName()
@@ -175,7 +156,7 @@ class PhotoSorter(QMainWindow):
         self.mediaPlayer.setPlaylist(QMediaPlaylist())
         self.videoWidget.hide()
 
-        if self.movie:                                                                                   #pt ca sa nu dea erori gifurile
+        if self.movie:                                                                                   
             self.movie.stop()
             self.movie = None
             self.imageBox.setMovie(None)
@@ -183,11 +164,11 @@ class PhotoSorter(QMainWindow):
         if self.imagesQueue:
             self.playButton.setVisible(False)
             self.positionSlider.setVisible(False)
-            if self.imagesQueue[0].endswith(".gif"):                                                        #asta se intampla daca e gif
+            if self.imagesQueue[0].endswith(".gif"):                                                        
                 self.movie = QMovie(self.imagesQueue[0])
                 self.imageBox.setMovie(self.movie)
                 self.movie.start()
-            elif self.imagesQueue[0].endswith(".mp4") or self.imagesQueue[0].endswith(".webm"):                                                      #pt video                 
+            elif self.imagesQueue[0].endswith(".mp4") or self.imagesQueue[0].endswith(".webm"):                                                                      
                 self.videoWidget.show()
                 self.mediaPlayer.setMedia(QMediaContent(QUrl.fromLocalFile(self.imagesQueue[0])))
                 self.videoWidget.setMediaObject(self.mediaPlayer)
@@ -206,7 +187,7 @@ class PhotoSorter(QMainWindow):
                 self.mediaPlayer.play()
                 
             else:
-                pixmap = QPixmap(self.imagesQueue[0])                                                               #pt imagini
+                pixmap = QPixmap(self.imagesQueue[0])                                                               
                 pixmap.setDevicePixelRatio(7.0)
                 pixmap = pixmap.scaled(3840, 2160, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
                 self.imageBox.setPixmap(pixmap)
@@ -215,7 +196,7 @@ class PhotoSorter(QMainWindow):
             self.imageBox.setText("No Image Selected")
             # self.imageName = ""
         
-        self.imageCountLabel.setText(f'Au mai ramas {len(self.imagesQueue)} imagini')
+        self.imageCountLabel.setText(f'{len(self.imagesQueue)} images left')
 
 
     def selectOutputFolder(self):
@@ -229,9 +210,9 @@ class PhotoSorter(QMainWindow):
         if self.imagesQueue:
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Warning)
-            msg.setText("Esti sigur ca vrei sa stergi imaginile din lista?")
-            daButton = QPushButton("Da") 
-            nuButton = QPushButton("Nu")
+            msg.setText("Are you sure you want to remove the images from the queue?")
+            daButton = QPushButton("Yes") 
+            nuButton = QPushButton("No")
             msg.addButton(nuButton, QMessageBox.RejectRole)
             msg.addButton(daButton, QMessageBox.AcceptRole)
             msg.setWindowTitle("Warning")
@@ -298,26 +279,26 @@ class PhotoSorter(QMainWindow):
             if True in [c in self.imageName for c in specialCharacter]:
                 msg = QMessageBox()
                 msg.setIcon(QMessageBox.Critical)
-                msg.setText("Nu aveti voie sa folositi caracterele \\/:*?\"<>| in numele imaginii")
+                msg.setText("You can not use \\/:*?\"<>| in the name")
                 msg.setWindowTitle("Error")
                 msg.exec_()
                 return
         else:
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Critical)
-            msg.setText("Numele imaginii nu poate fi gol")
+            msg.setText("Image name can not be empty")
             msg.setWindowTitle("Error")
             msg.exec_()
             return
         if not self.outputFolder:
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Critical)
-            msg.setText("Te rog selecteaza folderul in care sa se salveze")
+            msg.setText("Please select the output folder")
             msg.setWindowTitle("Error")
             msg.exec_()
             return
 
-        categories = self.categoriesList.selectedItems()                                   #asa se face transferul dintr-un folder in altul
+        categories = self.categoriesList.selectedItems()     
         
         if categories:
             category = categories[0]
@@ -347,11 +328,11 @@ class PhotoSorter(QMainWindow):
                 msg = QMessageBox()
                 msg.setIcon(QMessageBox.Critical)
                 i = 1
-                while os.path.exists(imageFolder + self.imageName + " dublura(" + str(i) + ")."+ imageExtension):
+                while os.path.exists(imageFolder + self.imageName + " double(" + str(i) + ")."+ imageExtension):
                     i += 1
-                msg.setText("Fisierul exista deja in acel folder\nA fost mutat in fisiserul selectat cu \"dublura(" + str(i) + ")\" la final")
+                msg.setText("The file already exists in that folder\nIt was moved in the selected folder with \"dublura(" + str(i) + ")\" at the end in its name")
                 msg.setWindowTitle("Error")
-                shutil.move(currentImage, imageFolder + self.imageName + " dublura(" + str(i) + ")."+ imageExtension)
+                shutil.move(currentImage, imageFolder + self.imageName + " double(" + str(i) + ")."+ imageExtension)
 
                 msg.exec_()
             else:
@@ -367,7 +348,7 @@ class PhotoSorter(QMainWindow):
             if True in [c in name for c in specialCharacter]:
                 msg = QMessageBox()
                 msg.setIcon(QMessageBox.Critical)
-                msg.setText("Nu aveti voie sa folositi caracterele \\/:*?\"<>|")
+                msg.setText("You can not use \\/:*?\"<>| in the name")
                 msg.setWindowTitle("Error")
                 msg.exec_()
             else:
@@ -376,7 +357,8 @@ class PhotoSorter(QMainWindow):
                 self.newCategoryName.setText("")
 
 
-    def keyPressEvent(self, e):                                 #shortcut pt buton
+    #shortcut for SelectCategory
+    def keyPressEvent(self, e):                                   
         if e.key() == Qt.Key_Space:
             self.selectCategory()
     
