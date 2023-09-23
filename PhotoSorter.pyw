@@ -122,20 +122,29 @@ class PhotoSorter(QMainWindow):
         self.jumpOverButton = QPushButton("Leave where it is (name will not be changed)")
         self.jumpOverButton.clicked.connect(self.jumpOver)
 
+        self.newFolderName = QLineEdit()
+        self.newFolderName.returnPressed.connect(self.renameFolder)
+        
+        self.renameFolderButton = QPushButton("Rename selected folder")
+        self.renameFolderButton.clicked.connect(self.renameFolder)
 
+        height = 10
+        width = 8
         mainLayout = QGridLayout(centralWidget)                               
-        mainLayout.addWidget(self.scroll, 0,0,7,5)
-        mainLayout.addWidget(self.categoriesList,0,5,6,2)
-        mainLayout.addWidget(selectCategoryButton,6,5,1,2)
-        mainLayout.addWidget(self.jumpOverButton, 6, 7, 1, 2)
-        mainLayout.addWidget(self.newCategoryName, 0,7,1,2)
-        mainLayout.addWidget(addCategoryButton, 1,7,1,1)
+        mainLayout.addWidget(self.scroll,             0, 0, height, 5)
+        mainLayout.addWidget(self.categoriesList,     0, 5, height, 2)
+        mainLayout.addWidget(selectCategoryButton,    height, 5, 1, 2)
+        mainLayout.addWidget(self.jumpOverButton,     height, 7, 1, 2)
+        mainLayout.addWidget(self.newCategoryName,    0, 7, 1, 2)
+        mainLayout.addWidget(addCategoryButton,       1, 7, 1, 1)
         mainLayout.addWidget(self.addSubfolderButton, 1, 8, 1, 1)
-        mainLayout.addWidget(self.imageCountLabel, 2,7,1,2)
-        mainLayout.addWidget(self.videoWidget,0,0,7,5)
-        mainLayout.addWidget(self.newImageName, 3, 7, 1,2)
-        mainLayout.addWidget(self.positionSlider, 7,1,1,2)
-        mainLayout.addWidget(self.playButton, 7, 0, 1,1)
+        mainLayout.addWidget(self.imageCountLabel,    2, 7, 1, 2)
+        mainLayout.addWidget(self.videoWidget,        0, 0, height, 5)
+        mainLayout.addWidget(self.newImageName,       3, 7, 1, 2)
+        mainLayout.addWidget(self.newFolderName,      height-3, 7, 1, 2)
+        mainLayout.addWidget(self.renameFolderButton, height-2, 7, 1, 2)
+        mainLayout.addWidget(self.positionSlider,     height, 1, 1, 2)
+        mainLayout.addWidget(self.playButton,         height, 0, 1, 1)
         
         self.setCentralWidget(centralWidget)
 
@@ -241,6 +250,42 @@ class PhotoSorter(QMainWindow):
             self.refreshImage() 
             self.refreshName()
 
+    def renameFolder(self):
+        categories = self.categoriesList.selectedItems()
+        if categories:
+            category = categories[0]
+
+            if category:
+                old_path = self.getAbsPath(category)
+                new_path = self.newFolderName.text()
+
+                if self.specialCharacterError(new_path):
+                    return
+                
+                name = category.text().replace(self.spaceText, '').replace(self.arrow, '')
+                prefix = category.text().replace(name, '')
+                new_path = old_path.replace(name, self.newFolderName.text())
+                
+                if not os.path.isdir(new_path):
+                    try:                        
+                        os.replace(old_path, new_path) 
+
+                        if prefix != '':                                          
+                            self.categoriesList.setSortingEnabled(0)
+                        else:
+                            self.removeSubcategories()
+
+                        self.categoriesList.selectedItems()[0].setText(prefix + self.newFolderName.text())
+                        self.newFolderName.setText('')
+                        self.categoriesList.setSortingEnabled(1)
+                        self.showSubcategories()
+                    except:
+                        msg = QMessageBox()
+                        msg.setIcon(QMessageBox.Critical)
+                        msg.setText("Renaming Failed")
+                        msg.setWindowTitle("Error")
+                        msg.exec_()
+
     def getAbsPath(self, name):
         selected = name.text().replace(self.arrow, '')
         index = self.categoriesList.row(name) 
@@ -282,7 +327,7 @@ class PhotoSorter(QMainWindow):
                 self.categoriesList.setSortingEnabled(0)
 
                 absolute_path_of_parent = self.getAbsPath(category)
-                print(absolute_path_of_parent)
+                # print(absolute_path_of_parent)
                 
                 if os.path.exists(absolute_path_of_parent):                    
                     auxList = []
@@ -305,14 +350,15 @@ class PhotoSorter(QMainWindow):
                 horizontal_scroll_position = int(item_rect.right() + center_horizontal)
                 self.categoriesList.horizontalScrollBar().setValue(horizontal_scroll_position)
                 
+                self.newFolderName.setText(category.text().replace(self.spaceText, '').replace(self.arrow, ''))
                 self.categoriesList.setSortingEnabled(1)
 
     def specialCharacterError(self, name):
-        specialCharacter = "\\/:*?\"<>|"
-        if True in [c in name for c in specialCharacter]:
+        specialCharacter = "\\/:*?\"<>|" 
+        if True in [c in name for c in specialCharacter] or self.spaceText in name:
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Critical)
-            msg.setText("You can not use \\/:*?\"<>| in the name")
+            msg.setText(f"You can not use \\/:*?\"<>| in the name\nAnd it cannot start with \"{self.spaceText}\"")
             msg.setWindowTitle("Error")
             msg.exec_()
             return True
@@ -349,33 +395,35 @@ class PhotoSorter(QMainWindow):
         
         if categories:
             category = categories[0]
-            aux = categories[0]
-            imageFolder = self.getAbsPath(category)
 
-            os.makedirs(imageFolder, exist_ok=True)
-            imageExtension = '.' + os.path.split(self.imagesQueue[0])[1].rsplit('.', 1)[1]
-            currentImage = self.imagesQueue[0]
-            
-            self.imagesQueue.pop(0)
-            self.refreshImage()
+            if category:
+                aux = categories[0]
+                imageFolder = self.getAbsPath(category)
 
-            imagePath = os.path.join(imageFolder, self.imageName)
-            
-            if os.path.exists(imagePath + imageExtension):
-                msg = QMessageBox()
-                msg.setIcon(QMessageBox.Critical)
-                i = 1
-                while os.path.exists(imagePath + " double(" + str(i) + ")"+ imageExtension):
-                    i += 1
-                msg.setText("The file already exists in that folder\nIt was moved in the selected folder with \"double(" + str(i) + ")\" at the end in its name")
-                msg.setWindowTitle("Error")
-                shutil.move(currentImage, imagePath + " double(" + str(i) + ")"+ imageExtension)
+                os.makedirs(imageFolder, exist_ok=True)
+                imageExtension = '.' + os.path.split(self.imagesQueue[0])[1].rsplit('.', 1)[1]
+                currentImage = self.imagesQueue[0]
+                
+                self.imagesQueue.pop(0)
+                self.refreshImage()
 
-                msg.exec_()
-            else:
-                shutil.move(currentImage, imagePath + imageExtension)
+                imagePath = os.path.join(imageFolder, self.imageName)
+                
+                if os.path.exists(imagePath + imageExtension):
+                    msg = QMessageBox()
+                    msg.setIcon(QMessageBox.Critical)
+                    i = 1
+                    while os.path.exists(imagePath + " double(" + str(i) + ")"+ imageExtension):
+                        i += 1
+                    msg.setText("The file already exists in that folder\nIt was moved in the selected folder with \"double(" + str(i) + ")\" at the end in its name")
+                    msg.setWindowTitle("Error")
+                    shutil.move(currentImage, imagePath + " double(" + str(i) + ")"+ imageExtension)
 
-            self.refreshName()
+                    msg.exec_()
+                else:
+                    shutil.move(currentImage, imagePath + imageExtension)
+
+                self.refreshName()
             
     def addNewCategory(self):
         name = self.newCategoryName.text()
@@ -401,11 +449,13 @@ class PhotoSorter(QMainWindow):
                 categories = self.categoriesList.selectedItems()
                 if categories:
                     category = categories[0]
-                    path = os.path.join(self.getAbsPath(category), name)
-                    if not os.path.isdir(path):
-                        os.mkdir(path)
-                    self.newCategoryName.setText('')
-                    self.showSubcategories()
+
+                    if category:
+                        path = os.path.join(self.getAbsPath(category), name)
+                        if not os.path.isdir(path):
+                            os.mkdir(path)
+                        self.newCategoryName.setText('')
+                        self.showSubcategories()
  
     def keyPressEvent(self, e): 
         #shortcut for SelectCategory                                  
