@@ -49,22 +49,25 @@ class Slider(QtWidgets.QSlider):
         return QtWidgets.QStyle.sliderValueFromPosition(self.minimum(), self.maximum(), p - sliderMin,
                                                sliderMax - sliderMin, opt.upsideDown)
 
+
 class PhotoSorter(QMainWindow):
     def __init__(self, parent=None):
         super(PhotoSorter, self).__init__(parent)
 
         self.initialiseData()
         self.initialiseGraphics()
-        
-    
+          
     def initialiseData(self):
         self.imagesQueue = []
         self.outputFolder = ""
         self.imageName = ""
         self.movie = None
-        self.mediaPlayer = None
-        self.separator = "      ->"
-
+        self.mediaPlayer = None        
+        self.spaceText = "      "
+        self.arrow = "->"
+        
+        self.subfolder_level = 0
+        self.separator = self.subfolder_level * self.spaceText + self.arrow
 
     def initialiseGraphics(self):
         self.setWindowTitle("Categories")                          
@@ -78,6 +81,9 @@ class PhotoSorter(QMainWindow):
         selectCategoryButton.clicked.connect(self.selectCategory)
         addCategoryButton = QPushButton("Add Category")
         addCategoryButton.clicked.connect(self.addNewCategory)              
+
+        self.addSubfolderButton = QPushButton("Add subcategory to selected")
+        self.addSubfolderButton.clicked.connect(self.addSubfolder)
 
         self.newCategoryName = QLineEdit()                                   
         self.newCategoryName.returnPressed.connect(self.addNewCategory)      
@@ -123,7 +129,8 @@ class PhotoSorter(QMainWindow):
         mainLayout.addWidget(selectCategoryButton,6,5,1,2)
         mainLayout.addWidget(self.jumpOverButton, 6, 7, 1, 2)
         mainLayout.addWidget(self.newCategoryName, 0,7,1,2)
-        mainLayout.addWidget(addCategoryButton, 1,7,1,2)
+        mainLayout.addWidget(addCategoryButton, 1,7,1,1)
+        mainLayout.addWidget(self.addSubfolderButton, 1, 8, 1, 1)
         mainLayout.addWidget(self.imageCountLabel, 2,7,1,2)
         mainLayout.addWidget(self.videoWidget,0,0,7,5)
         mainLayout.addWidget(self.newImageName, 3, 7, 1,2)
@@ -140,7 +147,6 @@ class PhotoSorter(QMainWindow):
         emptyQueueAction = menuBar.addAction("Empty Queue")
         emptyQueueAction.triggered.connect(self.emptyQueue)
         self.setMenuBar(menuBar)
-
 
     def openAddImagesDialog(self):                                                                                                                          
         dialog = QFileDialog()
@@ -198,7 +204,6 @@ class PhotoSorter(QMainWindow):
         
         self.imageCountLabel.setText(f'{len(self.imagesQueue)} images left')
 
-
     def selectOutputFolder(self):
         dialog = QFileDialog()
         self.outputFolder = dialog.getExistingDirectory(self)
@@ -236,52 +241,92 @@ class PhotoSorter(QMainWindow):
             self.refreshImage() 
             self.refreshName()
 
-    def removeSubcategories(self):
-        if not self.categoriesList.selectedItems()[0].text().startswith(self.separator):
-            for i in range(self.categoriesList.count(), 0, -1):
-                            if self.categoriesList.item(i):
-                                if self.categoriesList.item(i).text().startswith(self.separator):
-                                    self.categoriesList.takeItem(i)     
+    def getAbsPath(self, name):
+        selected = name.text().replace(self.arrow, '')
+        index = self.categoriesList.row(name) 
+        level = selected.count(self.spaceText)
 
-    def showSubcategories(self):
+        path = '/' + selected.replace(self.spaceText, '')
+
+        while level:
+            for i in range(index, -1, -1):
+                parent = self.categoriesList.item(i).text()
+                if parent.count(self.spaceText) < level:
+                    level -= 1
+                    path = '/' + parent.replace(self.spaceText, '').replace(self.arrow, '', 1) + path
+        return self.outputFolder + path
+
+    def removeSubcategories(self):
+        # calculate the level at which the selected is, and +1 so we remove only the subfolders below this level
+        if self.categoriesList.selectedItems():
+            level = self.categoriesList.selectedItems()[0].text().count(self.spaceText) + 1
+
+        # remove the subfolders in the list of a given level, to keep visibility
+        # we go bottom up so when one category will be removed, it won't skip the one below
+        for i in range(self.categoriesList.count(), 0, -1):
+            if self.categoriesList.item(i):
+                if self.categoriesList.item(i).text().count(self.spaceText) >= level:
+                    self.categoriesList.takeItem(i)  
+
+    def showSubcategories(self): 
         categories = self.categoriesList.selectedItems()
         if categories:
             category = categories[0]
-            # self.categoriesList.setAutoScroll(True)
-            # self.categoriesList.scrollToItem(categories[0], self.categoriesList.PositionAtBottom)
-            # sub_folders = [name for name in os.listdir(category.text()) if os.path.isdir(os.path.join(category.text(), name))]
+            
+            if category:     
+                # subfolders will be indented with one 'spaceText' from their parent           
+                subfolder_level = category.text().count(self.spaceText) + 1
+                self.separator = subfolder_level * self.spaceText + self.arrow
+                
+                self.removeSubcategories()                
+                self.categoriesList.setSortingEnabled(0)
 
-            if category:
-                if not category.text().startswith(self.separator):
-                    self.removeSubcategories()                   
-
-                    self.categoriesList.setSortingEnabled(0)
+                absolute_path_of_parent = self.getAbsPath(category)
+                print(absolute_path_of_parent)
+                
+                if os.path.exists(absolute_path_of_parent):                    
+                    auxList = []
                     
-                    if os.path.exists(self.outputFolder + '/' + category.text()):
-                        auxList = []
-                        for name in os.listdir(self.outputFolder + '/' + category.text()):
-                            if os.path.isdir(os.path.join(self.outputFolder + '/' + category.text(), name)):
-                                auxList.append(name)
+                    # searching for subfolders to add them in the list
+                    for name in os.listdir(absolute_path_of_parent):
+                        if os.path.isdir(os.path.join(absolute_path_of_parent, name)):
+                            auxList.append(name)
 
-                        # auxList.sort(reverse=True)  #fara reverse le afiseaza invers; daca tot nu merge, incearca sa pui un +i crescator in loc de +1 mai jos
-                        auxList = sorted(auxList, key=str.casefold, reverse=True)
-                        for name in auxList:
-                            self.categoriesList.insertItem(self.categoriesList.currentRow() + 1, self.separator + name)
+                    # make subfolders to appear alphabetically under parent
+                    auxList = sorted(auxList, key=str.casefold, reverse=True)
+                    for name in auxList:
+                        self.categoriesList.insertItem(self.categoriesList.currentRow() + 1, self.separator + name)
 
-                    self.categoriesList.setSortingEnabled(1)
+                # center the view around selected
+                self.categoriesList.scrollToItem(category, QListWidget.PositionAtCenter)
+
+                item_rect = self.categoriesList.visualItemRect(category)                
+                center_horizontal = self.categoriesList.viewport().width() / 2
+                horizontal_scroll_position = int(item_rect.right() + center_horizontal)
+                self.categoriesList.horizontalScrollBar().setValue(horizontal_scroll_position)
+                
+                self.categoriesList.setSortingEnabled(1)
+
+    def specialCharacterError(self, name):
+        specialCharacter = "\\/:*?\"<>|"
+        if True in [c in name for c in specialCharacter]:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setText("You can not use \\/:*?\"<>| in the name")
+            msg.setWindowTitle("Error")
+            msg.exec_()
+            return True
+        else:
+            return False
 
     def selectCategory(self):
         if not self.imagesQueue:
             return
         self.imageName = self.newImageName.text()
-        specialCharacter = "\\/:*?\"<>|"
+        
+        #Errors regarding name of the image
         if self.imageName: 
-            if True in [c in self.imageName for c in specialCharacter]:
-                msg = QMessageBox()
-                msg.setIcon(QMessageBox.Critical)
-                msg.setText("You can not use \\/:*?\"<>| in the name")
-                msg.setWindowTitle("Error")
-                msg.exec_()
+            if self.specialCharacterError(self.imageName):
                 return
         else:
             msg = QMessageBox()
@@ -290,6 +335,8 @@ class PhotoSorter(QMainWindow):
             msg.setWindowTitle("Error")
             msg.exec_()
             return
+        
+        #Errors regarding output folder
         if not self.outputFolder:
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Critical)
@@ -303,62 +350,65 @@ class PhotoSorter(QMainWindow):
         if categories:
             category = categories[0]
             aux = categories[0]
-            folderParinte = ""
-            if aux.text().startswith(self.separator):
-                category = aux.text().removeprefix(self.separator)
-                for i in range(self.categoriesList.currentRow(), 0, -1):
-                    if not self.categoriesList.item(i).text().startswith(self.separator):
-                        folderParinte = self.categoriesList.item(i).text()
-                        break
-            else:
-                category = aux.text()
+            imageFolder = self.getAbsPath(category)
 
-            if folderParinte:
-                imageFolder = self.outputFolder + '/' + folderParinte + '/' + category + '/'
-            else:
-                imageFolder = self.outputFolder + '/' + category + '/'
             os.makedirs(imageFolder, exist_ok=True)
-            imageExtension = os.path.split(self.imagesQueue[0])[1].rsplit('.', 1)[1]
+            imageExtension = '.' + os.path.split(self.imagesQueue[0])[1].rsplit('.', 1)[1]
             currentImage = self.imagesQueue[0]
             
             self.imagesQueue.pop(0)
             self.refreshImage()
+
+            imagePath = os.path.join(imageFolder, self.imageName)
             
-            if os.path.exists(imageFolder + self.imageName + "." + imageExtension):
+            if os.path.exists(imagePath + imageExtension):
                 msg = QMessageBox()
                 msg.setIcon(QMessageBox.Critical)
                 i = 1
-                while os.path.exists(imageFolder + self.imageName + " double(" + str(i) + ")."+ imageExtension):
+                while os.path.exists(imagePath + " double(" + str(i) + ")"+ imageExtension):
                     i += 1
-                msg.setText("The file already exists in that folder\nIt was moved in the selected folder with \"dublura(" + str(i) + ")\" at the end in its name")
+                msg.setText("The file already exists in that folder\nIt was moved in the selected folder with \"double(" + str(i) + ")\" at the end in its name")
                 msg.setWindowTitle("Error")
-                shutil.move(currentImage, imageFolder + self.imageName + " double(" + str(i) + ")."+ imageExtension)
+                shutil.move(currentImage, imagePath + " double(" + str(i) + ")"+ imageExtension)
 
                 msg.exec_()
             else:
-                shutil.move(currentImage, imageFolder + self.imageName + "." + imageExtension)
+                shutil.move(currentImage, imagePath + imageExtension)
 
             self.refreshName()
             
-
     def addNewCategory(self):
         name = self.newCategoryName.text()
-        specialCharacter = "\\/:*?\"<>|"
+
         if name: 
-            if True in [c in name for c in specialCharacter]:
-                msg = QMessageBox()
-                msg.setIcon(QMessageBox.Critical)
-                msg.setText("You can not use \\/:*?\"<>| in the name")
-                msg.setWindowTitle("Error")
-                msg.exec_()
+            if self.specialCharacterError(name=name):
+                return
             else:
                 if not self.categoriesList.findItems(name, Qt.MatchFlag.MatchFixedString):
                     self.categoriesList.addItem(name)
+                    path = self.outputFolder + '/' + name
+                    if not os.path.isdir(path):
+                        os.mkdir(path)
                 self.newCategoryName.setText("")
 
-
-    #shortcut for SelectCategory
-    def keyPressEvent(self, e):                                   
+    def addSubfolder(self):
+        name = self.newCategoryName.text()
+        
+        if name:
+            if self.specialCharacterError(name=name):
+                return
+            else:
+                categories = self.categoriesList.selectedItems()
+                if categories:
+                    category = categories[0]
+                    path = os.path.join(self.getAbsPath(category), name)
+                    if not os.path.isdir(path):
+                        os.mkdir(path)
+                    self.newCategoryName.setText('')
+                    self.showSubcategories()
+ 
+    def keyPressEvent(self, e): 
+        #shortcut for SelectCategory                                  
         if e.key() == Qt.Key_Space:
             self.selectCategory()
     
